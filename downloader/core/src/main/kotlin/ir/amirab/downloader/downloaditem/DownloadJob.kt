@@ -4,6 +4,7 @@ import ir.amirab.downloader.DownloadManager
 import ir.amirab.downloader.connection.DownloaderClient
 import ir.amirab.downloader.connection.response.expectSuccess
 import ir.amirab.downloader.connection.response.isWebPage
+import ir.amirab.downloader.destination.*
 import ir.amirab.downloader.destination.SimpleDownloadDestination
 import ir.amirab.downloader.downloaditem.DownloadItem.Companion.LENGTH_UNKNOWN
 import ir.amirab.downloader.exception.DownloadValidationException
@@ -40,7 +41,7 @@ class DownloadJob(
     val listDb by downloadManager::dlListDb
     val partListDb by downloadManager::partListDb
     private val parts: MutableList<Part> = mutableListOf()
-    lateinit var destination: SimpleDownloadDestination
+    lateinit var destination: DownloadDestination
     private var booted = false
 
 
@@ -54,11 +55,22 @@ class DownloadJob(
     val isDownloadActive = _isDownloadActive.asStateFlow()
     private fun initializeDestination() {
         val outFile = downloadManager.calculateOutputFile(downloadItem)
-        destination = SimpleDownloadDestination(
-            file = outFile,
-            diskStat = downloadManager.diskStat,
-            emptyFileCreator = downloadManager.emptyFileCreator
-        )
+        destination = if (downloadItem.m3u8) {
+            M3u8DownloadDestination(
+                file = outFile,
+                diskStat = downloadManager.diskStat,
+                emptyFileCreator = downloadManager.emptyFileCreator,
+                downloadItem=downloadItem,
+                client=client
+            )
+        } else {
+            SimpleDownloadDestination(
+                file = outFile,
+                diskStat = downloadManager.diskStat,
+                emptyFileCreator = downloadManager.emptyFileCreator
+            )
+        }
+
     }
 
     suspend fun boot() {
@@ -179,16 +191,19 @@ class DownloadJob(
         onProgressUpdate: (Int?) -> Unit,
     ) {
         withContext(Dispatchers.IO) {
-            destination.outputSize = downloadItem.contentLength
-                .takeIf {
-                    // reset size if we have a non-strict download (webpage etc.
-                    strictDownload
-                }
-                ?.takeIf {
-                    // reset output file if we can't support the file
-                    supportsConcurrent != false
-                }
-                ?: LENGTH_UNKNOWN
+            if (destination is SimpleDownloadDestination) {
+                (destination as SimpleDownloadDestination).outputSize = downloadItem.contentLength
+                    .takeIf {
+                        // reset size if we have a non-strict download (webpage etc.
+                        strictDownload
+                    }
+                    ?.takeIf {
+                        // reset output file if we can't support the file
+                        supportsConcurrent != false
+                    }
+                    ?: LENGTH_UNKNOWN
+            }
+
             if (!destination.isDownloadedPartsIsValid()) {
                 //file deleted or something!
                 parts.forEach { it.resetCurrent() }
@@ -270,7 +285,9 @@ class DownloadJob(
         if (parts.isNotEmpty()) {
             return
         }
-        if (downloadItem.contentLength == LENGTH_UNKNOWN) {
+        if (downloadItem.m3u8) {
+            setParts(resolvePartInfo(downloadItem))
+        } else if (downloadItem.contentLength == LENGTH_UNKNOWN) {
             setParts(
                 listOf(Part(0, null, 0))
             )
@@ -549,6 +566,9 @@ class DownloadJob(
 
     private suspend fun fetchDownloadInfoAndValidate(
     ) {
+        if (downloadItem.m3u8) {
+            return
+        }
 //        println("fetch download ")
 
 //        thisLogger().info("fetchDownloadInfoAndValidate")

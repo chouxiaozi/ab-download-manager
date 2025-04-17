@@ -4,6 +4,7 @@ import ir.amirab.downloader.connection.DownloaderClient
 import ir.amirab.downloader.connection.response.ResponseInfo
 import ir.amirab.downloader.downloaditem.DownloadCredentials
 import ir.amirab.downloader.downloaditem.IDownloadCredentials
+import ir.amirab.downloader.utils.parseM3u8
 import ir.amirab.util.UrlUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,7 +55,11 @@ class LinkChecker(
         }
         _isLoading.update { true }
         val info = runCatching {
-            client.test(downloadCredentials)
+            if (downloadCredentials.m3u8) {
+                parseM3u8(client, downloadCredentials)
+            } else {
+                client.test(downloadCredentials)
+            }
         }.getOrNull()
         _isLoading.update { false }
         setInfo(info)
@@ -62,8 +67,14 @@ class LinkChecker(
 
 
     private fun updateNameAndLength(responseInfo: ResponseInfo?) {
-        val suggestedName = responseInfo?.fileName ?: kotlin.run {
+        var suggestedName = responseInfo?.fileName ?: kotlin.run {
             UrlUtils.extractNameFromLink(this.credentials.value.link)
+        }
+        if (credentials.value.m3u8) {
+            if (suggestedName != null) {
+                suggestedName = System.currentTimeMillis()
+                    .toString() + "_" + suggestedName.split(".")[0] + ".mp4"
+            }
         }
         _suggestedName.update { suggestedName }
 

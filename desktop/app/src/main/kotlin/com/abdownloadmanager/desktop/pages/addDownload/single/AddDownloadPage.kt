@@ -55,7 +55,7 @@ fun AddDownloadPage(
         val credentials by component.credentials.collectAsState()
         fun setLink(link: String) {
             component.setCredentials(
-                credentials.copy(link = link)
+                credentials.copy(link = link, m3u8 = link.endsWith(".m3u8"))
             )
         }
 
@@ -138,11 +138,13 @@ fun AddDownloadPage(
                 )
                 val name by component.name.collectAsState()
                 Spacer(Modifier.size(8.dp))
-                NameTextField(
+                AddDownloadPageTextField(
                     text = name,
                     setText = {
                         component.setName(it)
                     },
+                    myStringResource(Res.string.name),
+                    modifier = Modifier.fillMaxWidth(),
                     errorText = when (canAddResult) {
                         is CanAddResult.DownloadAlreadyExists -> {
                             if (onDuplicateStrategy == null) {
@@ -154,8 +156,25 @@ fun AddDownloadPage(
 
                         CanAddResult.InvalidFileName -> myStringResource(Res.string.invalid_file_name)
                         else -> null
-                    }.takeIf { name.isNotEmpty() }
+                    }.takeIf { name.isNotEmpty() },
+                    end = {
+                        Row(modifier = Modifier.wrapContentWidth()) {
+                            CheckBox(
+                                size = 16.dp,
+                                value = credentials.m3u8,
+                                onValueChange = {
+                                    component.setCredentials(
+                                        credentials.copy(m3u8 = it)
+                                    )
+                                }
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("m3u8")
+                            Spacer(Modifier.width(8.dp))
+                        }
+                    }
                 )
+
             }
             Spacer(Modifier.size(24.dp))
             Column(
@@ -632,21 +651,6 @@ private fun UrlTextField(
             }
         },
         errorText = errorText
-    )
-}
-
-@Composable
-private fun NameTextField(
-    text: String,
-    setText: (String) -> Unit,
-    errorText: String? = null,
-) {
-    AddDownloadPageTextField(
-        text,
-        setText,
-        myStringResource(Res.string.name),
-        modifier = Modifier.fillMaxWidth(),
-        errorText = errorText,
     )
 }
 

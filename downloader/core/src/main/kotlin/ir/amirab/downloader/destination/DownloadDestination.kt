@@ -24,7 +24,7 @@ abstract class DownloadDestination(
 
     open fun cleanUpJunkFiles() {}
 
-    abstract fun getWriterFor(part: Part): DestWriter?
+    abstract fun getWriterFor(part: Part): DestWriter
     abstract fun canGetFileWriter(): Boolean
     protected open fun initializeOut(out: File) {
         val folder = out.parentFile

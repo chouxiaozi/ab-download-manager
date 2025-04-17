@@ -16,6 +16,8 @@ data class Part(
     var to: Long?,
     @Volatile
     var current: Long = from,
+    @Volatile
+    var link: String?=null,
 ) {
 
     fun howMuchProceed(): Long {

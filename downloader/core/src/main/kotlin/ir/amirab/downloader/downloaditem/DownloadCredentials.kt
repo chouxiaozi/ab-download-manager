@@ -10,11 +10,14 @@ data class DownloadCredentials(
     override val password: String? = null,
     override val downloadPage: String? = null,
     override val userAgent: String? = null,
-) : IDownloadCredentials{
+    override val m3u8: Boolean = false,
+    override val m3u8Props: MutableMap<String, String> = mutableMapOf(),
+) : IDownloadCredentials {
     companion object {
-        fun empty()=DownloadCredentials(
+        fun empty() = DownloadCredentials(
             link = ""
         )
+
         fun from(credentials: IDownloadCredentials): DownloadCredentials {
             credentials.run {
                 return when (this) {
@@ -40,4 +43,6 @@ interface IDownloadCredentials {
     val password: String?
     val downloadPage: String?
     val userAgent: String?
+    val m3u8: Boolean
+    val m3u8Props: MutableMap<String, String>
 }

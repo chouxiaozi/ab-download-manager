@@ -1,11 +1,11 @@
 package ir.amirab.downloader.part
 
 import ir.amirab.downloader.anntation.HeavyCall
-import ir.amirab.downloader.connection.DownloaderClient
 import ir.amirab.downloader.connection.Connection
+import ir.amirab.downloader.connection.DownloaderClient
 import ir.amirab.downloader.connection.response.expectSuccess
 import ir.amirab.downloader.destination.DestWriter
-import ir.amirab.downloader.downloaditem.IDownloadCredentials
+import ir.amirab.downloader.downloaditem.DownloadItem
 import ir.amirab.downloader.exception.DownloadValidationException
 import ir.amirab.downloader.exception.PartTooManyErrorException
 import ir.amirab.downloader.exception.ServerPartIsNotTheSameAsWeExpectException
@@ -26,7 +26,12 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import okio.*
+import okio.Buffer
+import okio.BufferedSource
+import okio.Source
+import okio.Throttler
+import okio.buffer
+import okio.use
 import kotlin.concurrent.thread
 import kotlin.coroutines.coroutineContext
 import kotlin.math.min
@@ -48,7 +53,7 @@ const val RetryDelay = 1_000L
  *  validate download size before trying to write to the filesystem
  */
 class PartDownloader(
-    val credentials: IDownloadCredentials,
+    val credentials: DownloadItem,
     val getDestWriter: () -> DestWriter,
     val part: Part,
     val client: DownloaderClient,
@@ -64,7 +69,11 @@ class PartDownloader(
         from: Long,
         to: Long?,
     ): Connection {
-        val connect = client.connect(credentials, from, to)
+        val connect = if (credentials.m3u8) {
+            client.connect(credentials.copy(link = part.link!!), from, to)
+        } else {
+            client.connect(credentials, from, to)
+        }
         // make sure this is a 2xx response
         kotlin.runCatching {
             connect.responseInfo.expectSuccess()
@@ -280,12 +289,13 @@ class PartDownloader(
                 // just download it we don't want to validate anything here
                 throwServerPartIsNotTheSameAsWeExpectException = true
             }
-            val serverPartIsNotTheSameAsWeExpectException = ServerPartIsNotTheSameAsWeExpectException(
-                start = partCopy.current,
-                end = partCopy.to,
-                expectedLength = partCopy.remainingLength,
-                actualLength = contentLength
-            )
+            val serverPartIsNotTheSameAsWeExpectException =
+                ServerPartIsNotTheSameAsWeExpectException(
+                    start = partCopy.current,
+                    end = partCopy.to,
+                    expectedLength = partCopy.remainingLength,
+                    actualLength = contentLength
+                )
             if (throwServerPartIsNotTheSameAsWeExpectException) {
                 conn.closeable.close()
                 throw serverPartIsNotTheSameAsWeExpectException
@@ -334,7 +344,7 @@ class PartDownloader(
 
     @HeavyCall
     private fun copyDataSync(source: BufferedSource, destWriter: DestWriter) {
-//        println("copying range to file --- ${part.current}-${part.to}")
+        //        println("copying range to file --- ${part.current}-${part.to}")
         val buffer = Buffer()
         var totalReadCount = 0L
         var firstLoop = true

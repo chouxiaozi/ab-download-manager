@@ -132,6 +132,9 @@ autoService-annoations = { module = "com.google.auto.service:auto-service-annota
 systemTray = "com.dorkbox:SystemTray:4.4"
 proxyVole = { module = "org.bidib.com.github.markusbernhardt:proxy-vole", version.ref = "proxyVole" }
 
+m3u8Parser="io.lindstrom:m3u8-parser:0.28"
+ffmpeg="org.bytedeco:ffmpeg:7.1-1.5.11"
+ffmpegPlatform="org.bytedeco:ffmpeg-platform:7.1-1.5.11"
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }

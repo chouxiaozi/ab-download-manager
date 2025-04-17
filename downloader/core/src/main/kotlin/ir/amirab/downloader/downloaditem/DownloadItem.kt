@@ -26,6 +26,8 @@ data class DownloadItem(
     var speedLimit: Long = 0,//0 is unlimited
 
     var fileChecksum: String? = null,
+    override var m3u8: Boolean = false,
+    override val m3u8Props: MutableMap<String, String> = mutableMapOf(),
 ) : IDownloadCredentials {
     companion object {
         const val LENGTH_UNKNOWN = -1L
@@ -55,6 +57,7 @@ fun DownloadItem.applyFrom(other: DownloadItem) {
     speedLimit = other.speedLimit
 
     fileChecksum = other.fileChecksum
+    m3u8 = other.m3u8
 }
 
 fun DownloadItem.withCredentials(credentials: IDownloadCredentials) = apply {
@@ -64,6 +67,8 @@ fun DownloadItem.withCredentials(credentials: IDownloadCredentials) = apply {
     password = credentials.password
     downloadPage = credentials.downloadPage
     userAgent = credentials.userAgent
+    m3u8 = credentials.m3u8
+    m3u8Props.putAll(credentials.m3u8Props)
 }
 
 enum class DownloadStatus {
